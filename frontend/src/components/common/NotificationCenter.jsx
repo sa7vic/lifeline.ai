@@ -1,0 +1,145 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { initRealtime } from "../../lib/realtime";
+import { api } from "../../lib/api";
+import { getSession } from "../../lib/session";
+
+export default function NotificationCenter() {
+  const [alerts, setAlerts] = useState({});
+  const [session, setSession] = useState(() => getSession());
+  const socket = useMemo(() => initRealtime(), []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    function sync() {
+      setSession(getSession());
+    }
+    window.addEventListener("lifeline_session_changed", sync);
+    return () => window.removeEventListener("lifeline_session_changed", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return undefined;
+
+    function onEnter(payload) {
+      setAlerts((prev) => ({ ...prev, [payload.alert_id]: payload }));
+    }
+
+    function onUpdate(payload) {
+      setAlerts((prev) => ({ ...prev, [payload.alert_id]: { ...prev[payload.alert_id], ...payload } }));
+    }
+
+    function onExit(payload) {
+      setAlerts((prev) => {
+        const next = { ...prev };
+        delete next[payload.alert_id];
+        return next;
+      });
+    }
+
+    socket.on("serious_alert", onEnter);
+    socket.on("serious_alert_update", onUpdate);
+    socket.on("serious_alert_exit", onExit);
+
+    return () => {
+      socket.off("serious_alert", onEnter);
+      socket.off("serious_alert_update", onUpdate);
+      socket.off("serious_alert_exit", onExit);
+    };
+  }, [socket]);
+
+  const list = Object.values(alerts);
+  const role = session?.role || session?.user?.role || "";
+  const isResponder = role === "official" || role === "volunteer";
+  if (!isResponder || !list.length) return null;
+
+  const responderLabel = role === "official" ? "Primary responder" : "Support responder";
+  const actionLabel = role === "official" ? "Take Command + Navigate" : "Respond + Navigate";
+
+  function openTrace(alert) {
+    const destLat = alert?.uploader_location?.lat;
+    const destLon = alert?.uploader_location?.lon;
+    if (!Number.isFinite(destLat) || !Number.isFinite(destLon)) return;
+
+    const destination = `${destLat},${destLon}`;
+    const base = new URL("https://www.google.com/maps/dir/");
+    base.searchParams.set("api", "1");
+    base.searchParams.set("destination", destination);
+    base.searchParams.set("travelmode", "driving");
+
+    const win = window.open("", "_blank");
+    if (win) win.opener = null;
+    const openUrl = (url) => {
+      if (win && !win.closed) {
+        win.location.href = url;
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    };
+
+    const session = getSession();
+    const token = session?.token || null;
+
+    async function resolveOrigin() {
+      if (token) {
+        try {
+          const me = await api.getMyLocation(token);
+          const loc = me?.location;
+          if (Number.isFinite(loc?.lat) && Number.isFinite(loc?.lon)) {
+            base.searchParams.set("origin", `${loc.lat},${loc.lon}`);
+            openUrl(base.toString());
+            return;
+          }
+        } catch {
+          // Fall through to browser geolocation.
+        }
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const origin = `${pos.coords.latitude},${pos.coords.longitude}`;
+            base.searchParams.set("origin", origin);
+            openUrl(base.toString());
+          },
+          () => openUrl(base.toString()),
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+        return;
+      }
+
+      openUrl(base.toString());
+    }
+    resolveOrigin();
+  }
+
+  return (
+    <div className="fixed top-4 right-4 z-50 w-full max-w-xs space-y-2">
+      {list.map((a) => (
+        <div key={a.alert_id} className="rounded-xl border border-red-500/40 bg-red-600/15 text-white p-3 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="text-xs uppercase tracking-wide text-red-200">Nearby Emergency</div>
+            <span className={`text-[10px] px-2 py-1 rounded-full border ${
+              role === "official" ? "border-amber-300/40 text-amber-200" : "border-emerald-300/40 text-emerald-200"
+            }`}>
+              {responderLabel}
+            </span>
+          </div>
+          <div className="font-semibold">{a.severity || "Serious"} incident</div>
+          <div className="text-sm text-white/80 mt-1">
+            Distance: {Number.isFinite(a.distance_m) ? Math.round(a.distance_m) : "?"} m
+          </div>
+          {a.incident_id && (
+            <div className="text-xs text-white/60 mt-1">Incident: {a.incident_id}</div>
+          )}
+          <button
+            className="mt-2 w-full px-3 py-2 rounded bg-red-600 hover:bg-red-500 font-semibold disabled:opacity-50"
+            onClick={() => openTrace(a)}
+            disabled={!Number.isFinite(a?.uploader_location?.lat) || !Number.isFinite(a?.uploader_location?.lon)}
+          >
+            {actionLabel}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -1,0 +1,32 @@
+{
+  "usr_1f76fb367df4": {
+    "email": "test@gmail.com",
+    "password": "12345678",
+    "profile": {
+      "name": "mau mau",
+      "phone": "",
+      "locationText": "cc"
+    }
+  },
+  "usr_4c35d98836b0": {
+    "email": "sha@gmail.com",
+    "password": "12345678",
+    "profile": {
+      "name": "Sarvesh Shahane",
+      "phone": "",
+      "locationText": ""
+    }
+  },
+  "usr_483ea32106c1": {
+    "email": "shahanesarvesh45@gmail.com",
+    "password": "12345678",
+    "profile": {
+      "name": "Sarvesh Shahane",
+      "phone": "9876543210",
+      "locationText": "Delhi",
+      "organization": "HC",
+      "badge_id": "",
+      "role": "official"
+    }
+  }
+}
