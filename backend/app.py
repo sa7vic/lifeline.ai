@@ -63,7 +63,10 @@ def create_app():
 
     @app.get("/api/debug/groq")
     def debug_groq():
-        return {"has_key": bool(os.environ.get("GROQ_API_KEY")), "model": os.environ.get("GROQ_MODEL", "")}
+        return {
+            "has_key": bool(os.environ.get("GROQ_API_KEY")),
+            "model": os.environ.get("GROQ_MODEL", ""),
+        }
 
     return app
 
