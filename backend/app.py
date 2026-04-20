@@ -11,24 +11,38 @@ from flask_cors import CORS
 
 print("BOOT 2: flask imported", flush=True)
 
-from routes.auth import auth_bp
-from routes.incidents import incidents_bp
-from routes.volunteers import volunteers_bp
-from routes.locations import locations_bp
-from socketio_server import socketio
+# Isolate failing imports with precise logging
+try:
+    from socketio_server import socketio
+    print("BOOT 2.1: socketio_server imported", flush=True)
 
-print("BOOT 3: routes + socketio imported", flush=True)
+    from routes.auth import auth_bp
+    print("BOOT 2.2: routes.auth imported", flush=True)
+
+    from routes.volunteers import volunteers_bp
+    print("BOOT 2.3: routes.volunteers imported", flush=True)
+
+    from routes.locations import locations_bp
+    print("BOOT 2.4: routes.locations imported", flush=True)
+
+    from routes.incidents import incidents_bp
+    print("BOOT 2.5: routes.incidents imported", flush=True)
+
+except Exception as e:
+    import traceback
+    print("BOOT FAIL during imports:", repr(e), flush=True)
+    traceback.print_exc()
+    raise
 
 import realtime
-
-print("BOOT 4: realtime imported", flush=True)
+print("BOOT 3: realtime imported", flush=True)
 
 try:
     from dotenv import load_dotenv
     load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
-    print("BOOT 4b: dotenv loaded", flush=True)
+    print("BOOT 3b: dotenv loaded", flush=True)
 except Exception as e:
-    print(f"BOOT 4b: dotenv not loaded ({e})", flush=True)
+    print(f"BOOT 3b: dotenv not loaded ({e})", flush=True)
 
 def create_app():
     app = Flask(__name__)
@@ -55,12 +69,11 @@ def create_app():
 
 app = create_app()
 socketio.init_app(app, cors_allowed_origins="*")
-
-print("BOOT 5: app created + socketio initialized", flush=True)
+print("BOOT 4: app created + socketio initialized", flush=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
-    print(f"BOOT 6: about to bind on 0.0.0.0:{port}", flush=True)
+    print(f"BOOT 5: about to bind on 0.0.0.0:{port}", flush=True)
 
     socketio.run(
         app,
