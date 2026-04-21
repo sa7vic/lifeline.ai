@@ -1,17 +1,45 @@
 import math
 import mediapipe as mp
 import numpy as np
+import cv2
+
 
 mp_pose = mp.solutions.pose
+
 
 def _angle_deg(ax, ay, bx, by):
     vx, vy = (bx - ax), (by - ay)
     dot = vx * 0 + vy * (-1)
-    mag = math.sqrt(vx*vx + vy*vy)
+    mag = math.sqrt(vx * vx + vy * vy)
     if mag == 0:
         return 0.0
     cos = max(-1.0, min(1.0, dot / mag))
     return math.degrees(math.acos(cos))
+
+
+def _to_bgr3(frame):
+    if frame is None:
+        return None
+
+    arr = np.asarray(frame)
+
+    if arr.dtype != np.uint8:
+        arr = np.clip(arr, 0, 255).astype(np.uint8)
+
+    if arr.ndim == 2:
+        return cv2.cvtColor(arr, cv2.COLOR_GRAY2BGR)
+
+    if arr.ndim != 3:
+        return None
+
+    if arr.shape[2] == 3:
+        return arr
+
+    if arr.shape[2] == 4:
+        return cv2.cvtColor(arr, cv2.COLOR_BGRA2BGR)
+
+    return None
+
 
 def analyze_pose_frames(frames_bgr):
     per_frame = []
@@ -22,10 +50,20 @@ def analyze_pose_frames(frames_bgr):
 
     with mp_pose.Pose(static_image_mode=True, model_complexity=1, enable_segmentation=False) as pose:
         for frame in frames_bgr:
-            rgb = frame[:, :, ::-1]
+            bgr = _to_bgr3(frame)
+            if bgr is None:
+                per_frame.append(
+                    {"landmarks_ok": False, "movement_score": 0.0, "torso_angle": 0.0, "collapse_likelihood": 0.0}
+                )
+                continue
+
+            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
             res = pose.process(rgb)
+
             if not res.pose_landmarks:
-                per_frame.append({"landmarks_ok": False, "movement_score": 0.0, "torso_angle": 0.0, "collapse_likelihood": 0.0})
+                per_frame.append(
+                    {"landmarks_ok": False, "movement_score": 0.0, "torso_angle": 0.0, "collapse_likelihood": 0.0}
+                )
                 continue
 
             lm = res.pose_landmarks.landmark
@@ -58,12 +96,14 @@ def analyze_pose_frames(frames_bgr):
             if collapse_likelihood >= 0.7:
                 collapse_flags += 1
 
-            per_frame.append({
-                "landmarks_ok": True,
-                "movement_score": movement_score,
-                "torso_angle": torso_angle,
-                "collapse_likelihood": collapse_likelihood,
-            })
+            per_frame.append(
+                {
+                    "landmarks_ok": True,
+                    "movement_score": movement_score,
+                    "torso_angle": torso_angle,
+                    "collapse_likelihood": collapse_likelihood,
+                }
+            )
 
     n = max(1, len(per_frame))
     summary = {
