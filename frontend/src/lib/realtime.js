@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 import { ensureGuestId, getSession } from "./session";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 let socket = null;
 let sessionListenerAttached = false;
@@ -19,7 +19,8 @@ export function initRealtime() {
     const payload = {};
 
     if (session?.mode === "user" && session.token) payload.token = session.token;
-    if (session?.mode === "guest" && session.guest_id) payload.guest_id = session.guest_id;
+    if (session?.mode === "guest" && session.guest_id)
+      payload.guest_id = session.guest_id;
 
     if (Object.keys(payload).length) socket.emit("register", payload);
   }
