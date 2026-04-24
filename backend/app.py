@@ -15,6 +15,7 @@ except Exception as e:
 
 from flask import Flask
 from flask_cors import CORS
+from i18n import get_locale, set_request_locale
 
 print("BOOT 2: flask imported", flush=True)
 
@@ -57,9 +58,13 @@ def create_app():
     app.register_blueprint(volunteers_bp, url_prefix="/api/volunteers")
     app.register_blueprint(locations_bp, url_prefix="/api/locations")
 
+    @app.before_request
+    def _apply_request_locale():
+        set_request_locale()
+
     @app.get("/api/health")
     def health():
-        return {"ok": True}
+        return {"ok": True, "locale": get_locale()}
 
     @app.get("/api/debug/groq")
     def debug_groq():

@@ -1,7 +1,25 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+import { getApiLocale } from "../i18n";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
+class ApiError extends Error {
+  constructor(message, code = "request_failed", status = 500) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+function withLocale(headers = {}) {
+  return {
+    ...headers,
+    "Accept-Language": getApiLocale(),
+  };
+}
 
 async function jsonFetch(path, { method = "GET", body, token } = {}) {
-  const headers = { "Content-Type": "application/json" };
+  const headers = withLocale({ "Content-Type": "application/json" });
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -11,8 +29,22 @@ async function jsonFetch(path, { method = "GET", body, token } = {}) {
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Request failed");
+  if (!res.ok) {
+    throw new ApiError(data.error || "Request failed", data.error_code || "request_failed", res.status);
+  }
   return data;
+}
+
+export function toUserMessage(error, t, fallbackKey = "errors.generic") {
+  const code = error?.code;
+  if (code && t) {
+    const key = `errors.codes.${code}`;
+    const mapped = t(key);
+    if (mapped !== key) return mapped;
+  }
+
+  if (error?.message) return error.message;
+  return t ? t(fallbackKey) : "Request failed";
 }
 
 function toQuery(params = {}) {
@@ -36,7 +68,7 @@ export const api = {
     const fd = new FormData();
     fd.append("video", file);
 
-    const headers = {};
+    const headers = withLocale();
     if (session?.mode === "user" && session.token) {
       headers["Authorization"] = `Bearer ${session.token}`;
     }
@@ -52,7 +84,9 @@ export const api = {
     });
 
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "upload failed");
+    if (!res.ok) {
+      throw new ApiError(data.error || "upload failed", data.error_code || "video_required", res.status);
+    }
     return data;
   },
 

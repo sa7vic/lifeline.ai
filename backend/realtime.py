@@ -3,6 +3,7 @@ from flask_socketio import emit, join_room, leave_room
 
 from data.stores import SESSIONS
 from socketio_server import socketio
+from i18n import t
 
 SID_TO_SUBJECT = {}
 SUBJECT_TO_SIDS = {}
@@ -17,12 +18,19 @@ def register(data):
     payload = data or {}
     token = (payload.get("token") or "").strip()
     guest_id = (payload.get("guest_id") or "").strip()
+    locale = payload.get("locale")
 
     user_id = SESSIONS.get(token) if token else None
     subject_id = user_id or guest_id
 
     if not subject_id:
-        emit("register_error", {"error": "unauthorized"})
+        emit(
+            "register_error",
+            {
+                "error": t("errors.unauthorized", locale=locale, default="unauthorized"),
+                "error_code": "unauthorized",
+            },
+        )
         return
 
     prev = SID_TO_SUBJECT.get(request.sid)

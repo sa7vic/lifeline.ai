@@ -7,6 +7,11 @@ Rules:
 - Output must be STRICT JSON (no extra text).
 - Provide a step-by-step plan (8-12 steps when applicable), each step short + actionable.
 - Include CPR steps only if unresponsive AND not breathing is indicated.
+- Use INPUT_JSON.locale to select language for all human-readable values.
+- Write summary, reasoning, steps.title, steps.details, steps.tts, safety_notes, and unknowns in INPUT_JSON.locale.language_name.
+- Do not mix languages in the same response.
+- Keep JSON keys, citations.field, and severity enum values in English.
+
 
 Output schema:
 {

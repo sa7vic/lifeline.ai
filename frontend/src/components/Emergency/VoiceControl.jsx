@@ -1,7 +1,26 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-export default function VoiceControl({ enabled, setEnabled, steps, activeStep, setActiveStep, onPlayActive, onPlayAll, onStop }) {
+function getRecognitionLocale(locale) {
+  if (locale === "hi") return "hi-IN";
+  if (locale === "ar") return "ar";
+  return "en-IN";
+}
+
+export default function VoiceControl({
+  enabled,
+  setEnabled,
+  steps,
+  activeStep,
+  setActiveStep,
+  onPlayActive,
+  onPlayAll,
+  onStop,
+}) {
+  const { t, i18n } = useTranslation();
+
   const SpeechRecognition = useMemo(() => {
+    if (typeof window === "undefined") return null;
     return window.SpeechRecognition || window.webkitSpeechRecognition || null;
   }, []);
 
@@ -15,24 +34,25 @@ export default function VoiceControl({ enabled, setEnabled, steps, activeStep, s
   }, [enabled]);
 
   function parseCommand(text) {
-    const t = (text || "").toLowerCase();
+    const value = (text || "").toLowerCase();
 
-    if (t.includes("stop")) return { type: "stop" };
-    if (t.includes("play all")) return { type: "playAll" };
-    if (t.includes("next")) return { type: "next" };
-    if (t.includes("previous") || t.includes("back")) return { type: "prev" };
+    if (value.includes("stop")) return { type: "stop" };
+    if (value.includes("play all")) return { type: "playAll" };
+    if (value.includes("next")) return { type: "next" };
+    if (value.includes("previous") || value.includes("back")) return { type: "prev" };
 
-    const m = t.match(/step\s+(\d+)/);
+    const m = value.match(/step\s+(\d+)/);
     if (m) return { type: "step", n: parseInt(m[1], 10) };
 
-    if (t.includes("repeat")) return { type: "repeat" };
+    if (value.includes("repeat")) return { type: "repeat" };
     return { type: "unknown" };
   }
 
   function start() {
     if (!supported) return;
+
     const recog = new SpeechRecognition();
-    recog.lang = "en-IN";
+    recog.lang = getRecognitionLocale((i18n.resolvedLanguage || i18n.language || "en").split("-")[0]);
     recog.interimResults = false;
     recog.maxAlternatives = 1;
 
@@ -64,32 +84,30 @@ export default function VoiceControl({ enabled, setEnabled, steps, activeStep, s
     <div className="bg-white/5 border border-white/10 rounded-xl p-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Voice Control</h3>
-          <p className="text-sm text-white/70">Toggle voice commands like “next step” or “step 8”.</p>
+          <h3 className="text-lg font-semibold">{t("voice.title")}</h3>
+          <p className="text-sm text-white/70">{t("voice.subtitle")}</p>
         </div>
 
         <button
           className={`px-3 py-2 rounded border ${enabled ? "bg-white text-black border-white" : "border-white/20"}`}
           onClick={() => setEnabled((v) => !v)}
           disabled={!supported}
-          title={!supported ? "Speech recognition not supported in this browser" : ""}
+          title={!supported ? t("voice.unsupportedTitle") : ""}
         >
-          {enabled ? "ON" : "OFF"}
+          {enabled ? t("common.on") : t("common.off")}
         </button>
       </div>
 
       {enabled && (
         <div className="mt-3 flex gap-2 flex-wrap">
           <button className="px-3 py-2 rounded bg-blue-600 hover:bg-blue-500" onClick={start} disabled={listening || !supported}>
-            {listening ? "Listening..." : "Start Listening"}
+            {listening ? t("voice.listening") : t("voice.startListening")}
           </button>
-          <div className="text-xs text-white/60 self-center">
-            Say: “next step”, “repeat step 8”, “play all”, “stop”
-          </div>
+          <div className="text-xs text-white/60 self-center">{t("voice.commandHint")}</div>
         </div>
       )}
 
-      {!supported && <div className="text-xs text-white/60 mt-2">Speech recognition not supported here.</div>}
+      {!supported && <div className="text-xs text-white/60 mt-2">{t("voice.unsupported")}</div>}
     </div>
   );
 }

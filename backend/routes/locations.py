@@ -3,6 +3,7 @@ from flask import Blueprint, request
 
 from data.stores import LOCATIONS, SESSIONS, now_ts
 from alerts import handle_location_update
+from i18n import error_response
 
 locations_bp = Blueprint("locations", __name__)
 
@@ -48,12 +49,12 @@ def update_location():
     body = _json()
     subject_type, subject_id = _subject_from_request(body)
     if not subject_id:
-        return {"error": "unauthorized"}, 401
+        return error_response("unauthorized", 401)
 
     lat = _float(body.get("lat"))
     lon = _float(body.get("lon"))
     if lat is None or lon is None:
-        return {"error": "lat and lon required"}, 400
+        return error_response("lat_lon_required", 400)
 
     location = {
         "subject_id": subject_id,
@@ -82,11 +83,11 @@ def get_my_location():
             subject_type, subject_id = "guest", guest_id
 
     if not subject_id:
-        return {"error": "unauthorized"}, 401
+        return error_response("unauthorized", 401)
 
     location = LOCATIONS.get(subject_id)
     if not location:
-        return {"error": "location not found"}, 404
+        return error_response("location_not_found", 404)
 
     return {"location": location}
 
@@ -108,7 +109,7 @@ def nearby_locations():
             lat = LOCATIONS[subject_id].get("lat")
             lon = LOCATIONS[subject_id].get("lon")
         if lat is None or lon is None:
-            return {"error": "lat and lon required"}, 400
+            return error_response("lat_lon_required", 400)
 
     now = now_ts()
     results = []

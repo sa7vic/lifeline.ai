@@ -11,10 +11,15 @@ from ai.llm_prompts import SEVERITY_EXPLAIN_PROMPT, CHATBOT_PROMPT
 from ai.groq_service import GroqService
 from socketio_server import socketio
 from alerts import create_serious_alert
+from i18n import error_response, t
 
 incidents_bp = Blueprint("incidents", __name__)
 groq = GroqService()
-
+LOCALE_TO_LANGUAGE = {
+    "en": "English",
+    "hi": "Hindi",
+    "ar": "Arabic",
+}
 def _json():
     return request.get_json(force=True, silent=False)
 
@@ -36,7 +41,7 @@ def _subject_from_request_form():
 @incidents_bp.post("")
 def create_incident():
     if "video" not in request.files:
-        return {"error": "video file is required"}, 400
+        return error_response("video_required", 400)
 
     f = request.files["video"]
     incident_id = new_id("inc")
@@ -88,12 +93,12 @@ def create_incident():
 @incidents_bp.post("/<incident_id>/questionnaire")
 def save_questionnaire(incident_id: str):
     if incident_id not in INCIDENTS:
-        return {"error": "incident not found"}, 404
+        return error_response("incident_not_found", 404)
     body = _json()
 
     loc = (body.get("location_text") or "").strip()
     if not loc:
-        return {"error": "location_text is required"}, 400
+        return error_response("location_required", 400)
 
     INCIDENTS[incident_id]["questionnaire"] = body
     return {"ok": True}
@@ -101,7 +106,7 @@ def save_questionnaire(incident_id: str):
 @incidents_bp.post("/<incident_id>/analyze")
 def analyze(incident_id: str):
     if incident_id not in INCIDENTS:
-        return {"error": "incident not found"}, 404
+        return error_response("incident_not_found", 404)
 
     ctx = INCIDENTS[incident_id]
     frames = extract_frames(ctx["video_meta"]["path"], sample_fps=3, max_frames=18)
@@ -134,17 +139,27 @@ def analyze(incident_id: str):
         if hybrid_gate.get("override_applied") and llm_out.get("severity") != hybrid_gate.get("severity"):
             llm_out["severity"] = hybrid_gate["severity"]
             llm_out.setdefault("reasoning", [])
-            llm_out["reasoning"].insert(0, "Hybrid override applied due to a red-flag condition.")
+            llm_out["reasoning"].insert(0, t("llm.override_reason"))
     except Exception as e:
         # fallback minimal structured output
         llm_out = {
             "severity": hybrid_gate["severity"],
             "confidence": hybrid_gate["confidence"],
-            "summary": "LLM unavailable. Using hybrid computed severity. Call 112 if life-threatening or unsure.",
-            "reasoning": ["Computed severity based on questionnaire + video metrics."],
+            "summary": t("llm.unavailable_summary"),
+            "reasoning": [t("llm.computed_reason")],
             "steps": [
-                {"n": 1, "title": "Scene safety", "details": "Check hazards and ensure the scene is safe.", "tts": "Check scene safety first."},
-                {"n": 2, "title": "Call 112", "details": "If life-threatening or unsure, call emergency services in India: 112.", "tts": "Call one one two."}
+                {
+                    "n": 1,
+                    "title": t("llm.scene_safety_title"),
+                    "details": t("llm.scene_safety_details"),
+                    "tts": t("llm.scene_safety_tts"),
+                },
+                {
+                    "n": 2,
+                    "title": t("llm.call_emergency_title"),
+                    "details": t("llm.call_emergency_details"),
+                    "tts": t("llm.call_emergency_tts"),
+                },
             ],
             "safety_notes": [],
             "unknowns": [str(e)],
@@ -169,7 +184,7 @@ def analyze(incident_id: str):
             "severity": final_level,
             "location_text": incident_location_text,
             "hazards": questionnaire.get("environment_hazards") or [],
-            "safe_instructions": "Do not approach if unsafe. Call 112. Bring AED if available."
+            "safe_instructions": t("alerts.safe_instructions_default"),
         }
 
         if incident_location_norm:
@@ -182,12 +197,12 @@ def analyze(incident_id: str):
 @incidents_bp.post("/<incident_id>/chat")
 def chat(incident_id: str):
     if incident_id not in INCIDENTS:
-        return {"error": "incident not found"}, 404
+        return error_response("incident_not_found", 404)
     ctx = INCIDENTS[incident_id]
     body = _json()
     msg = (body.get("message") or "").strip()
     if not msg:
-        return {"error": "message required"}, 400
+        return error_response("message_required", 400)
 
     context = {
         "questionnaire": ctx.get("questionnaire") or {},
@@ -201,7 +216,7 @@ def chat(incident_id: str):
         steps = out.get("steps", [])
         recommended_step = out.get("recommended_step", 1)
     except Exception as e:
-        reply = f"Call 112 if life-threatening or unsure. (Chat unavailable: {e})"
+        reply = t("chat.unavailable", reason=str(e))
         steps = []
         recommended_step = 1
 
@@ -212,7 +227,7 @@ def chat(incident_id: str):
 def report(incident_id: str):
     ctx = INCIDENTS.get(incident_id)
     if not ctx:
-        return {"error": "incident not found"}, 404
+        return error_response("incident_not_found", 404)
 
     sev = (ctx.get("severity") or {}).get("level", "Unknown")
     sev_json = (ctx.get("severity") or {}).get("reasoning") or {}

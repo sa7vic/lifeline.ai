@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 function blobToFile(blob, filename) {
   return new File([blob], filename, { type: blob.type || "video/webm" });
 }
 
 export default function VideoRecorder({ onRecordedFile }) {
+  const { t } = useTranslation();
+
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const recorderRef = useRef(null);
@@ -19,9 +22,10 @@ export default function VideoRecorder({ onRecordedFile }) {
   const canRecord = typeof window !== "undefined" && !!navigator.mediaDevices?.getUserMedia && !!window.MediaRecorder;
 
   const mimeType = useMemo(() => {
+    if (typeof window === "undefined") return "";
     const candidates = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
-    for (const c of candidates) {
-      if (window.MediaRecorder && MediaRecorder.isTypeSupported?.(c)) return c;
+    for (const candidate of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported?.(candidate)) return candidate;
     }
     return "";
   }, []);
@@ -37,7 +41,7 @@ export default function VideoRecorder({ onRecordedFile }) {
 
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "environment" },
-      audio: true
+      audio: true,
     });
 
     streamRef.current = stream;
@@ -50,7 +54,7 @@ export default function VideoRecorder({ onRecordedFile }) {
 
   function stopCamera() {
     const s = streamRef.current;
-    if (s) s.getTracks().forEach((t) => t.stop());
+    if (s) s.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     setReady(false);
   }
@@ -60,27 +64,27 @@ export default function VideoRecorder({ onRecordedFile }) {
     setChunks([]);
     setSeconds(0);
 
-    const r = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : undefined);
-    recorderRef.current = r;
+    const recorder = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : undefined);
+    recorderRef.current = recorder;
 
-    r.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) setChunks((c) => [...c, e.data]);
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) setChunks((current) => [...current, e.data]);
     };
 
-    r.start(200);
+    recorder.start(200);
     setRecording(true);
   }
 
   function stopRecording() {
-    const r = recorderRef.current;
-    if (r && r.state !== "inactive") r.stop();
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
     setRecording(false);
   }
 
   useEffect(() => {
     if (!recording) return;
-    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
+    return () => clearInterval(timer);
   }, [recording]);
 
   useEffect(() => {
@@ -115,7 +119,7 @@ export default function VideoRecorder({ onRecordedFile }) {
   }
 
   if (!canRecord) {
-    return <div className="text-sm text-white/70">Recording not supported; use upload instead.</div>;
+    return <div className="text-sm text-white/70">{t("videoRecorder.unsupported")}</div>;
   }
 
   return (
@@ -125,20 +129,30 @@ export default function VideoRecorder({ onRecordedFile }) {
           <video ref={videoRef} className="w-full rounded border border-white/10 bg-black" playsInline muted />
           <div className="mt-2 flex flex-wrap gap-2">
             {!ready ? (
-              <button className="px-3 py-2 rounded bg-slate-200 text-black" onClick={startCamera}>Start Camera</button>
+              <button className="px-3 py-2 rounded bg-slate-200 text-black" onClick={startCamera}>
+                {t("videoRecorder.startCamera")}
+              </button>
             ) : (
-              <button className="px-3 py-2 rounded border border-white/20" onClick={stopCamera}>Stop Camera</button>
+              <button className="px-3 py-2 rounded border border-white/20" onClick={stopCamera}>
+                {t("videoRecorder.stopCamera")}
+              </button>
             )}
-            <button className="px-3 py-2 rounded bg-emerald-600 disabled:opacity-50"
-              onClick={startRecording} disabled={!ready || recording}>
-              Record
+            <button
+              className="px-3 py-2 rounded bg-emerald-600 disabled:opacity-50"
+              onClick={startRecording}
+              disabled={!ready || recording}
+            >
+              {t("videoRecorder.record")}
             </button>
-            <button className="px-3 py-2 rounded bg-red-600 disabled:opacity-50"
-              onClick={stopRecording} disabled={!recording || seconds < 5}>
-              Stop (min 5s)
+            <button
+              className="px-3 py-2 rounded bg-red-600 disabled:opacity-50"
+              onClick={stopRecording}
+              disabled={!recording || seconds < 5}
+            >
+              {t("videoRecorder.stopMin")}
             </button>
             <div className="px-3 py-2 rounded border border-white/20 text-sm">
-              {recording ? `Recording: ${seconds}s` : "Idle"}
+              {recording ? t("videoRecorder.recordingTime", { seconds }) : t("videoRecorder.idle")}
             </div>
           </div>
         </div>
@@ -147,11 +161,18 @@ export default function VideoRecorder({ onRecordedFile }) {
           <video src={previewUrl} className="w-full rounded border border-white/10 bg-black" controls />
           <div className="mt-2 flex gap-2">
             <button className="px-3 py-2 rounded bg-blue-600 hover:bg-blue-500" onClick={useThisClip}>
-              Use Clip
+              {t("videoRecorder.useClip")}
             </button>
-            <button className="px-3 py-2 rounded border border-white/20"
-              onClick={() => { URL.revokeObjectURL(previewUrl); setPreviewUrl(""); setChunks([]); setSeconds(0); }}>
-              Retake
+            <button
+              className="px-3 py-2 rounded border border-white/20"
+              onClick={() => {
+                URL.revokeObjectURL(previewUrl);
+                setPreviewUrl("");
+                setChunks([]);
+                setSeconds(0);
+              }}
+            >
+              {t("videoRecorder.retake")}
             </button>
           </div>
         </div>

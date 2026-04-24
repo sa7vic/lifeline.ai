@@ -1,11 +1,24 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { initRealtime } from "../../lib/realtime";
 import { api } from "../../lib/api";
 import { getSession } from "../../lib/session";
+import { useLocaleFormat } from "../../i18n/format";
+
+function toSeverityKey(level) {
+  if (!level) return "unknown";
+  const normalized = String(level).toLowerCase();
+  if (["critical", "high", "moderate", "low"].includes(normalized)) return normalized;
+  return "unknown";
+}
 
 export default function NotificationCenter() {
+  const { t } = useTranslation();
+  const { formatDateTime, formatNumber, isRtl } = useLocaleFormat();
+
   const [alerts, setAlerts] = useState({});
   const [dismissed, setDismissed] = useState({});
+  const dismissedRef = useRef({});
   const [session, setSession] = useState(() => getSession());
   const socket = useMemo(() => initRealtime(), []);
 
@@ -22,12 +35,12 @@ export default function NotificationCenter() {
     if (!socket) return undefined;
 
     function onEnter(payload) {
-      if (dismissed[payload.alert_id]) return;
+      if (dismissedRef.current[payload.alert_id]) return;
       setAlerts((prev) => ({ ...prev, [payload.alert_id]: payload }));
     }
 
     function onUpdate(payload) {
-      if (dismissed[payload.alert_id]) return;
+      if (dismissedRef.current[payload.alert_id]) return;
       setAlerts((prev) => ({ ...prev, [payload.alert_id]: { ...prev[payload.alert_id], ...payload } }));
     }
 
@@ -41,6 +54,7 @@ export default function NotificationCenter() {
         if (!prev[payload.alert_id]) return prev;
         const next = { ...prev };
         delete next[payload.alert_id];
+        dismissedRef.current = next;
         return next;
       });
     }
@@ -61,8 +75,8 @@ export default function NotificationCenter() {
   const isResponder = role === "official" || role === "volunteer";
   if (!isResponder || !list.length) return null;
 
-  const responderLabel = role === "official" ? "Primary responder" : "Support responder";
-  const actionLabel = role === "official" ? "Take Command + Navigate" : "Respond + Navigate";
+  const responderLabel = role === "official" ? t("notifications.responderPrimary") : t("notifications.responderSupport");
+  const actionLabel = role === "official" ? t("notifications.actionOfficial") : t("notifications.actionVolunteer");
 
   function openTrace(alert) {
     const destLat = alert?.uploader_location?.lat;
@@ -85,8 +99,8 @@ export default function NotificationCenter() {
       }
     };
 
-    const session = getSession();
-    const token = session?.token || null;
+    const currentSession = getSession();
+    const token = currentSession?.token || null;
 
     async function resolveOrigin() {
       if (token) {
@@ -127,38 +141,53 @@ export default function NotificationCenter() {
       delete next[alertId];
       return next;
     });
-    setDismissed((prev) => ({ ...prev, [alertId]: true }));
+    setDismissed((prev) => {
+      const next = { ...prev, [alertId]: true };
+      dismissedRef.current = next;
+      return next;
+    });
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50 w-full max-w-xs space-y-2">
+    <div className={`fixed top-4 z-50 w-full max-w-xs space-y-2 ${isRtl ? "left-4" : "right-4"}`}>
       {list.map((a) => (
         <div key={a.alert_id} className="rounded-xl border border-red-500/40 bg-red-600/15 text-white p-3 shadow-lg">
           <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-wide text-red-200">Nearby Emergency</div>
+            <div className="text-xs uppercase tracking-wide text-red-200">{t("notifications.nearbyEmergency")}</div>
             <div className="flex items-center gap-2">
-              <span className={`text-[10px] px-2 py-1 rounded-full border ${
-                role === "official" ? "border-amber-300/40 text-amber-200" : "border-emerald-300/40 text-emerald-200"
-              }`}>
+              <span
+                className={`text-[10px] px-2 py-1 rounded-full border ${
+                  role === "official" ? "border-amber-300/40 text-amber-200" : "border-emerald-300/40 text-emerald-200"
+                }`}
+              >
                 {responderLabel}
               </span>
               <button
                 type="button"
                 className="w-6 h-6 rounded-full border border-white/20 text-white/70 hover:text-white hover:border-white/40"
                 onClick={() => dismissAlert(a.alert_id)}
-                aria-label="Dismiss notification"
-                title="Dismiss"
+                aria-label={t("notifications.dismiss")}
+                title={t("notifications.dismiss")}
               >
                 x
               </button>
             </div>
           </div>
-          <div className="font-semibold">{a.severity || "Serious"} incident</div>
-          <div className="text-sm text-white/80 mt-1">
-            Distance: {Number.isFinite(a.distance_m) ? Math.round(a.distance_m) : "?"} m
+          <div className="font-semibold">
+            {t("notifications.severityIncident", {
+              severity: t(`severity.${toSeverityKey(a.severity || "unknown")}`),
+            })}
           </div>
-          {a.incident_id && (
-            <div className="text-xs text-white/60 mt-1">Incident: {a.incident_id}</div>
+          <div className="text-sm text-white/80 mt-1">
+            {t("common.distanceMeters", {
+              distance: Number.isFinite(a.distance_m) ? formatNumber(Math.round(a.distance_m)) : "?",
+            })}
+          </div>
+          {a.incident_id && <div className="text-xs text-white/60 mt-1">{t("common.incidentLabel", { incidentId: a.incident_id })}</div>}
+          {a.updated_at && (
+            <div className="text-xs text-white/60 mt-1">
+              {t("common.updatedAt", { time: formatDateTime(a.updated_at) })}
+            </div>
           )}
           <button
             className="mt-2 w-full px-3 py-2 rounded bg-red-600 hover:bg-red-500 font-semibold disabled:opacity-50"

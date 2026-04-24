@@ -1,6 +1,8 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 export default function TTSControls({ steps, activeStep, setActiveStep }) {
+  const { t } = useTranslation();
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;
 
   function stop() {
@@ -40,32 +42,28 @@ export default function TTSControls({ steps, activeStep, setActiveStep }) {
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-      <h3 className="text-lg font-semibold">Audio Guidance</h3>
-      <p className="text-sm text-white/70 mt-1">Play the selected step only (good for repeating step 8).</p>
+      <h3 className="text-lg font-semibold">{t("audio.title")}</h3>
+      <p className="text-sm text-white/70 mt-1">{t("audio.subtitle")}</p>
 
       <div className="mt-3 flex flex-wrap gap-2">
         <button disabled={!supported} className="px-3 py-2 rounded bg-emerald-600 disabled:opacity-50" onClick={playActive}>
-          Play Step {activeStep}
+          {t("audio.playStep", { step: activeStep })}
         </button>
         <button disabled={!supported} className="px-3 py-2 rounded bg-slate-200 text-black disabled:opacity-50" onClick={playAll}>
-          Play All
+          {t("audio.playAll")}
         </button>
         <button disabled={!supported} className="px-3 py-2 rounded border border-white/20 disabled:opacity-50" onClick={stop}>
-          Stop
+          {t("audio.stop")}
         </button>
         <button className="px-3 py-2 rounded border border-white/20" onClick={prevStep}>
-          Prev
+          {t("audio.prev")}
         </button>
         <button className="px-3 py-2 rounded border border-white/20" onClick={nextStep}>
-          Next
+          {t("audio.next")}
         </button>
       </div>
 
-      {!supported && (
-        <div className="text-xs text-white/60 mt-2">
-          Speech Synthesis not supported in this browser.
-        </div>
-      )}
+      {!supported && <div className="text-xs text-white/60 mt-2">{t("audio.unsupported")}</div>}
     </div>
   );
 }

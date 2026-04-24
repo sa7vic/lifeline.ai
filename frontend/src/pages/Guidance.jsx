@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { useTranslation } from "react-i18next";
+import { api, toUserMessage } from "../lib/api";
+import { useLocaleFormat } from "../i18n/format";
 
 import ChatbotIcon from "../components/Emergency/ChatbotIcon.jsx";
 import ChatbotOverlay from "../components/Emergency/ChatbotOverlay.jsx";
@@ -10,9 +12,18 @@ import VoiceControl from "../components/Emergency/VoiceControl.jsx";
 import EmergencyCallButton from "../components/Emergency/EmergencyCallButton.jsx";
 import ReportButton from "../components/Emergency/ReportButton.jsx";
 
+function toSeverityKey(level) {
+  if (!level) return "unknown";
+  const normalized = String(level).toLowerCase();
+  if (["critical", "high", "moderate", "low"].includes(normalized)) return normalized;
+  return "unknown";
+}
+
 export default function Guidance() {
   const { incidentId } = useParams();
   const nav = useNavigate();
+  const { t } = useTranslation();
+  const { formatNumber } = useLocaleFormat();
 
   const [chatOpen, setChatOpen] = useState(false);
   const [busy, setBusy] = useState(true);
@@ -32,23 +43,37 @@ export default function Guidance() {
       const steps = analyzed.incident?.severity?.reasoning?.steps || [];
       if (steps.length) setActiveStep(steps[0].n || 1);
     } catch (e) {
-      setErr(e.message || String(e));
+      setErr(toUserMessage(e, t));
     } finally {
       setBusy(false);
     }
   }
 
-  useEffect(() => { load(); }, [incidentId]);
+  useEffect(() => {
+    load();
+  }, [incidentId]);
 
   const sev = incident?.severity?.reasoning || {};
   const steps = sev.steps || [];
 
   const level = sev.severity || incident?.severity?.level || "Unknown";
+  const localizedLevel = t(`severity.${toSeverityKey(level)}`);
+
   const banner =
-    level === "Critical" ? "bg-red-600" :
-    level === "High" ? "bg-orange-500" :
-    level === "Moderate" ? "bg-yellow-500 text-black" :
-    "bg-green-600";
+    level === "Critical"
+      ? "bg-red-600"
+      : level === "High"
+        ? "bg-orange-500"
+        : level === "Moderate"
+          ? "bg-yellow-500 text-black"
+          : "bg-green-600";
+
+  const confidenceText =
+    typeof sev.confidence === "number"
+      ? t("guidance.confidence", {
+          confidence: formatNumber(sev.confidence, { style: "percent", maximumFractionDigits: 0 }),
+        })
+      : "";
 
   const ttsHelpers = useMemo(() => {
     const supported = typeof window !== "undefined" && "speechSynthesis" in window;
@@ -72,7 +97,7 @@ export default function Guidance() {
   if (busy) {
     return (
       <div className="min-h-screen bg-black text-white p-6">
-        <div className="max-w-xl mx-auto">Analyzing...</div>
+        <div className="max-w-xl mx-auto">{t("guidance.analyzing")}</div>
       </div>
     );
   }
@@ -82,29 +107,29 @@ export default function Guidance() {
       <div className="max-w-3xl mx-auto grid gap-4">
         <div className="flex items-center justify-between">
           <button className="px-3 py-2 rounded border border-white/20" onClick={() => nav("/emergency")}>
-            ← Retake / Back
+            {t("guidance.back")}
           </button>
-          <div className="text-xs text-white/60">Incident: {incidentId}</div>
+          <div className="text-xs text-white/60">{t("common.incidentLabel", { incidentId })}</div>
         </div>
 
         {err && <div className="text-sm text-red-300">{err}</div>}
 
         <div className={`p-4 rounded-xl ${banner} font-bold`}>
-          SEVERITY: {level}
-          {typeof sev.confidence === "number" ? ` • ${Math.round(sev.confidence * 100)}%` : ""}
+          {t("guidance.severity", { level: localizedLevel })}
+          {confidenceText ? ` • ${confidenceText}` : ""}
         </div>
 
         {sev.summary && (
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <div className="font-semibold">Summary</div>
+            <div className="font-semibold">{t("guidance.summary")}</div>
             <div className="text-sm text-white/80 mt-1">{sev.summary}</div>
           </div>
         )}
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <div className="font-semibold">Steps</div>
-            <div className="text-xs text-white/60 mt-1">Tap any step (e.g., Step 8) then play that step only.</div>
+            <div className="font-semibold">{t("guidance.steps")}</div>
+            <div className="text-xs text-white/60 mt-1">{t("guidance.stepsHelp")}</div>
             <div className="mt-3">
               <StepList steps={steps} activeStep={activeStep} onSelect={setActiveStep} />
             </div>
@@ -125,17 +150,15 @@ export default function Guidance() {
             />
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 grid gap-2">
-              <div className="font-semibold">Emergency Support</div>
-              <div className="text-sm text-white/70">AI guidance is supplemental. Call 112 if life-threatening.</div>
+              <div className="font-semibold">{t("guidance.emergencySupport")}</div>
+              <div className="text-sm text-white/70">{t("guidance.emergencySupportText")}</div>
               <EmergencyCallButton />
               <ReportButton incidentId={incidentId} />
             </div>
           </div>
         </div>
 
-        <div className="text-xs text-white/60">
-          Alert routing: Health Officials receive priority alerts; Volunteers can also respond to High/Critical cases.
-        </div>
+        <div className="text-xs text-white/60">{t("guidance.routingNote")}</div>
       </div>
 
       <ChatbotIcon onClick={() => setChatOpen(true)} />

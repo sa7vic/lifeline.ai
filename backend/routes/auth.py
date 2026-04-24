@@ -1,5 +1,6 @@
 from flask import Blueprint, request
 from data.stores import USERS, SESSIONS, new_id, auth_token, refresh_users, persist_users
+from i18n import error_response
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -15,11 +16,11 @@ def signup():
     profile = body.get("profile") or {}
 
     if not email or not password:
-        return {"error": "email and password required"}, 400
+        return error_response("email_password_required", 400)
 
     for u in USERS.values():
         if u["email"] == email:
-            return {"error": "email already exists"}, 409
+            return error_response("email_exists", 409)
 
     user_id = new_id("usr")
     USERS[user_id] = {"email": email, "password": password, "profile": profile}
@@ -42,13 +43,13 @@ def login():
             SESSIONS[token] = user_id
             return {"token": token, "user": {"user_id": user_id, "email": email, "profile": u.get("profile", {})}}
 
-    return {"error": "invalid credentials"}, 401
+    return error_response("invalid_credentials", 401)
 
 @auth_bp.get("/me")
 def me():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     user_id = SESSIONS.get(token)
     if not user_id:
-        return {"error": "unauthorized"}, 401
+        return error_response("unauthorized", 401)
     u = USERS[user_id]
     return {"user": {"user_id": user_id, "email": u["email"], "profile": u.get("profile", {})}}

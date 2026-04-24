@@ -1,0 +1,32 @@
+{
+  "errors": {
+    "email_password_required": "email and password required",
+    "email_exists": "email already exists",
+    "invalid_credentials": "invalid credentials",
+    "unauthorized": "unauthorized",
+    "video_required": "video file is required",
+    "incident_not_found": "incident not found",
+    "location_required": "location_text is required",
+    "message_required": "message required",
+    "lat_lon_required": "lat and lon required",
+    "location_not_found": "location not found",
+    "volunteer_location_required": "location_text required (or set profile.locationText)"
+  },
+  "llm": {
+    "override_reason": "Hybrid override applied due to a red-flag condition.",
+    "unavailable_summary": "LLM unavailable. Using hybrid computed severity. Call 112 if life-threatening or unsure.",
+    "computed_reason": "Computed severity based on questionnaire + video metrics.",
+    "scene_safety_title": "Scene safety",
+    "scene_safety_details": "Check hazards and ensure the scene is safe.",
+    "scene_safety_tts": "Check scene safety first.",
+    "call_emergency_title": "Call 112",
+    "call_emergency_details": "If life-threatening or unsure, call emergency services in India: 112.",
+    "call_emergency_tts": "Call one one two."
+  },
+  "alerts": {
+    "safe_instructions_default": "Do not approach if unsafe. Call 112. Bring AED if available."
+  },
+  "chat": {
+    "unavailable": "Call 112 if life-threatening or unsure. (Chat unavailable: {{reason}})"
+  }
+}
