@@ -1,9 +1,15 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { speakText, stopSpeech, warmSpeechVoices } from "../../lib/tts";
 
 export default function VoiceGuidance({ incident }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;
+  const locale = (i18n.resolvedLanguage || i18n.language || "en").split("-")[0];
+
+  React.useEffect(() => {
+    warmSpeechVoices();
+  }, []);
 
   const sev = incident?.severity?.reasoning || null;
   const voiceScriptRaw = sev?.voice_script || "";
@@ -25,15 +31,12 @@ export default function VoiceGuidance({ incident }) {
 
   function play() {
     if (!supported) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(buildText());
-    u.rate = 1.0;
-    window.speechSynthesis.speak(u);
+    speakText(buildText(), { locale, rate: 1.0 });
   }
 
   function stop() {
     if (!supported) return;
-    window.speechSynthesis.cancel();
+    stopSpeech();
   }
 
   return (

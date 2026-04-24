@@ -1,21 +1,24 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { speakText, stopSpeech, warmSpeechVoices } from "../../lib/tts";
 
 export default function TTSControls({ steps, activeStep, setActiveStep }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;
+  const locale = (i18n.resolvedLanguage || i18n.language || "en").split("-")[0];
+
+  React.useEffect(() => {
+    warmSpeechVoices();
+  }, []);
 
   function stop() {
     if (!supported) return;
-    window.speechSynthesis.cancel();
+    stopSpeech();
   }
 
   function playText(text) {
     if (!supported) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.0;
-    window.speechSynthesis.speak(u);
+    speakText(text, { locale, rate: 1.0 });
   }
 
   function playActive() {
@@ -25,7 +28,7 @@ export default function TTSControls({ steps, activeStep, setActiveStep }) {
   }
 
   function playAll() {
-    const all = (steps || []).map((s) => `Step ${s.n}. ${s.tts || s.title}`).join(" ");
+    const all = (steps || []).map((s) => s.tts || t("stepList.stepTitle", { n: s.n, title: s.title || "" })).join(" ");
     playText(all);
   }
 

@@ -11,7 +11,7 @@ from ai.llm_prompts import SEVERITY_EXPLAIN_PROMPT, CHATBOT_PROMPT
 from ai.groq_service import GroqService
 from socketio_server import socketio
 from alerts import create_serious_alert
-from i18n import error_response, t
+from i18n import error_response, t, get_locale, resolve_supported_locale
 
 incidents_bp = Blueprint("incidents", __name__)
 groq = GroqService()
@@ -20,6 +20,16 @@ LOCALE_TO_LANGUAGE = {
     "hi": "Hindi",
     "ar": "Arabic",
 }
+
+
+def _llm_locale_payload(preferred_locale: str | None = None):
+    locale_code = resolve_supported_locale(preferred_locale or get_locale())
+    return {
+        "code": locale_code,
+        "language_name": LOCALE_TO_LANGUAGE.get(locale_code, "English"),
+    }
+
+
 def _json():
     return request.get_json(force=True, silent=False)
 
@@ -130,10 +140,14 @@ def analyze(incident_id: str):
     # LLM enrichment (strict JSON, robust parsing)
     try:
         llm_out = groq.chat_json(
-          SEVERITY_EXPLAIN_PROMPT,
-          {"merged_metrics_questionnaire": merged, "hybrid_gate": hybrid_gate},
-          temperature=0.2,
-          max_tokens=950
+            SEVERITY_EXPLAIN_PROMPT,
+            {
+                "merged_metrics_questionnaire": merged,
+                "hybrid_gate": hybrid_gate,
+                "locale": _llm_locale_payload(),
+            },
+            temperature=0.2,
+            max_tokens=950,
         )
 
         if hybrid_gate.get("override_applied") and llm_out.get("severity") != hybrid_gate.get("severity"):
@@ -204,6 +218,8 @@ def chat(incident_id: str):
     if not msg:
         return error_response("message_required", 400)
 
+    locale = _llm_locale_payload(body.get("locale"))
+
     context = {
         "questionnaire": ctx.get("questionnaire") or {},
         "clip_summary": ctx.get("clip_summary") or {},
@@ -211,7 +227,12 @@ def chat(incident_id: str):
     }
 
     try:
-        out = groq.chat_json(CHATBOT_PROMPT, {"message": msg, "context": context}, temperature=0.2, max_tokens=650)
+        out = groq.chat_json(
+            CHATBOT_PROMPT,
+            {"message": msg, "context": context, "locale": locale},
+            temperature=0.2,
+            max_tokens=650,
+        )
         reply = out.get("reply", "")
         steps = out.get("steps", [])
         recommended_step = out.get("recommended_step", 1)

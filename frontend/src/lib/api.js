@@ -99,10 +99,10 @@ export const api = {
   analyzeIncident: (incidentId) =>
     jsonFetch(`/api/incidents/${incidentId}/analyze`, { method: "POST" }),
 
-  chatIncident: (incidentId, message) =>
+  chatIncident: (incidentId, message, locale = getApiLocale()) =>
     jsonFetch(`/api/incidents/${incidentId}/chat`, {
       method: "POST",
-      body: { message },
+      body: { message, locale },
     }),
 
   volunteerOptIn: (token, payload) =>

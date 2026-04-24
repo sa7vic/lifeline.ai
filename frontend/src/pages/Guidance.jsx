@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, toUserMessage } from "../lib/api";
 import { useLocaleFormat } from "../i18n/format";
+import { speakText, stopSpeech, warmSpeechVoices } from "../lib/tts";
 
 import ChatbotIcon from "../components/Emergency/ChatbotIcon.jsx";
 import ChatbotOverlay from "../components/Emergency/ChatbotOverlay.jsx";
@@ -22,8 +23,9 @@ function toSeverityKey(level) {
 export default function Guidance() {
   const { incidentId } = useParams();
   const nav = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { formatNumber } = useLocaleFormat();
+  const locale = (i18n.resolvedLanguage || i18n.language || "en").split("-")[0];
 
   const [chatOpen, setChatOpen] = useState(false);
   const [busy, setBusy] = useState(true);
@@ -53,6 +55,10 @@ export default function Guidance() {
     load();
   }, [incidentId]);
 
+  useEffect(() => {
+    warmSpeechVoices();
+  }, []);
+
   const sev = incident?.severity?.reasoning || {};
   const steps = sev.steps || [];
 
@@ -79,20 +85,17 @@ export default function Guidance() {
     const supported = typeof window !== "undefined" && "speechSynthesis" in window;
     const playText = (text) => {
       if (!supported) return;
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1.0;
-      window.speechSynthesis.speak(u);
+      speakText(text, { locale, rate: 1.0 });
     };
-    const stop = () => supported && window.speechSynthesis.cancel();
+    const stop = () => supported && stopSpeech();
     const playStepN = (n) => {
       const s = steps.find((x) => x.n === n);
       if (!s) return;
       playText(s.tts || `${s.title}. ${s.details}`);
     };
-    const playAll = () => playText(steps.map((s) => `Step ${s.n}. ${s.tts || s.title}`).join(" "));
+    const playAll = () => playText(steps.map((s) => s.tts || t("stepList.stepTitle", { n: s.n, title: s.title || "" })).join(" "));
     return { playStepN, playAll, stop };
-  }, [steps]);
+  }, [locale, steps, t]);
 
   if (busy) {
     return (

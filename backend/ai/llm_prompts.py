@@ -28,7 +28,7 @@ Output schema:
 }
 
 If hybrid_gate.override_applied is true, severity MUST equal hybrid_gate.severity.
-Always include: "Call 112 if life-threatening or unsure."
+Always include the equivalent of "Call 112 if life-threatening or unsure." in INPUT_JSON.locale.language_name.
 """
 
 CHATBOT_PROMPT = """
@@ -38,7 +38,11 @@ Rules:
 - Output STRICT JSON only.
 - If user asks for CPR, return CPR steps as a list.
 - Prefer structured steps over long paragraphs.
-- Always include: Call 112 if life-threatening or unsure.
+- Use INPUT_JSON.locale to select language for all human-readable values.
+- Write reply, steps.title, steps.details, and steps.tts in INPUT_JSON.locale.language_name.
+- Do not mix languages in the same response.
+- Keep JSON keys and citations.field in English.
+- Always include the equivalent of "Call 112 if life-threatening or unsure." in INPUT_JSON.locale.language_name.
 
 Output schema:
 {
