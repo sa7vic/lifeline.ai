@@ -1,0 +1,32 @@
+{
+  "errors": {
+    "email_password_required": "ईमेल और पासवर्ड आवश्यक हैं",
+    "email_exists": "ईमेल पहले से मौजूद है",
+    "invalid_credentials": "अमान्य क्रेडेंशियल्स",
+    "unauthorized": "अनधिकृत",
+    "video_required": "वीडियो फ़ाइल आवश्यक है",
+    "incident_not_found": "घटना नहीं मिली",
+    "location_required": "location_text आवश्यक है",
+    "message_required": "संदेश आवश्यक है",
+    "lat_lon_required": "lat और lon आवश्यक हैं",
+    "location_not_found": "स्थान नहीं मिला",
+    "volunteer_location_required": "location_text आवश्यक है (या profile.locationText सेट करें)"
+  },
+  "llm": {
+    "override_reason": "रेड-फ्लैग स्थिति के कारण हाइब्रिड ओवरराइड लागू किया गया।",
+    "unavailable_summary": "LLM उपलब्ध नहीं है। हाइब्रिड गणना की गई गंभीरता उपयोग की जा रही है। स्थिति जानलेवा हो या संदेह हो तो 112 पर कॉल करें।",
+    "computed_reason": "गंभीरता प्रश्नावली और वीडियो मेट्रिक्स के आधार पर गणना की गई।",
+    "scene_safety_title": "दृश्य की सुरक्षा",
+    "scene_safety_details": "खतरों की जांच करें और सुनिश्चित करें कि स्थान सुरक्षित है।",
+    "scene_safety_tts": "पहले दृश्य की सुरक्षा जांचें।",
+    "call_emergency_title": "112 पर कॉल करें",
+    "call_emergency_details": "स्थिति जानलेवा हो या संदेह हो तो भारत में आपातकालीन सेवा 112 पर कॉल करें।",
+    "call_emergency_tts": "वन वन टू पर कॉल करें।"
+  },
+  "alerts": {
+    "safe_instructions_default": "यदि जगह असुरक्षित हो तो पास न जाएं। 112 पर कॉल करें। उपलब्ध हो तो AED लेकर आएं।"
+  },
+  "chat": {
+    "unavailable": "स्थिति जानलेवा हो या संदेह हो तो 112 पर कॉल करें। (चैट उपलब्ध नहीं: {{reason}})"
+  }
+}

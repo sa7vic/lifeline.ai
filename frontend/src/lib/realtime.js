@@ -1,5 +1,6 @@
 import { io } from "socket.io-client";
 import { ensureGuestId, getSession } from "./session";
+import { getApiLocale } from "../i18n";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -17,6 +18,7 @@ export function initRealtime() {
     const rawSession = getSession();
     const session = ensureGuestId(rawSession) || rawSession;
     const payload = {};
+    payload.locale = getApiLocale();
 
     if (session?.mode === "user" && session.token) payload.token = session.token;
     if (session?.mode === "guest" && session.guest_id)

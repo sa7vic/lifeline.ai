@@ -1,5 +1,6 @@
 from flask import Blueprint, request
 from data.stores import VOLUNTEERS, SESSIONS, USERS, now_ts
+from i18n import error_response
 
 volunteers_bp = Blueprint("volunteers", __name__)
 
@@ -17,7 +18,7 @@ def _norm_loc(s: str) -> str:
 def opt_in():
     user_id = _require_user()
     if not user_id:
-        return {"error": "unauthorized"}, 401
+        return error_response("unauthorized", 401)
 
     body = _json()
     active = bool(body.get("active", True))
@@ -25,7 +26,7 @@ def opt_in():
     location_norm = _norm_loc(location_text)
 
     if not location_norm:
-        return {"error": "location_text required (or set profile.locationText)"}, 400
+        return error_response("volunteer_location_required", 400)
 
     VOLUNTEERS[user_id] = {
         "active": active,

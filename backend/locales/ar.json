@@ -1,0 +1,32 @@
+{
+  "errors": {
+    "email_password_required": "البريد الإلكتروني وكلمة المرور مطلوبان",
+    "email_exists": "البريد الإلكتروني موجود بالفعل",
+    "invalid_credentials": "بيانات الدخول غير صحيحة",
+    "unauthorized": "غير مصرح",
+    "video_required": "ملف الفيديو مطلوب",
+    "incident_not_found": "الحادث غير موجود",
+    "location_required": "حقل location_text مطلوب",
+    "message_required": "الرسالة مطلوبة",
+    "lat_lon_required": "قيمة lat و lon مطلوبة",
+    "location_not_found": "الموقع غير موجود",
+    "volunteer_location_required": "حقل location_text مطلوب (أو عيّن profile.locationText)"
+  },
+  "llm": {
+    "override_reason": "تم تطبيق تجاوز هجين بسبب وجود حالة إنذار عالية.",
+    "unavailable_summary": "LLM غير متاح. سيتم استخدام شدة الحالة المحسوبة هجينًا. اتصل على 112 إذا كانت الحالة مهددة للحياة أو غير واضحة.",
+    "computed_reason": "تم حساب الشدة بناءً على الاستبيان ومؤشرات الفيديو.",
+    "scene_safety_title": "سلامة الموقع",
+    "scene_safety_details": "تحقق من المخاطر وتأكد من أن المكان آمن.",
+    "scene_safety_tts": "تحقق من سلامة الموقع أولًا.",
+    "call_emergency_title": "اتصل بـ 112",
+    "call_emergency_details": "إذا كانت الحالة مهددة للحياة أو غير واضحة، فاتصل بخدمات الطوارئ في الهند على 112.",
+    "call_emergency_tts": "اتصل على 112."
+  },
+  "alerts": {
+    "safe_instructions_default": "لا تقترب إذا كان المكان غير آمن. اتصل على 112. أحضر جهاز AED إذا كان متاحًا."
+  },
+  "chat": {
+    "unavailable": "اتصل على 112 إذا كانت الحالة مهددة للحياة أو غير واضحة. (الدردشة غير متاحة: {{reason}})"
+  }
+}

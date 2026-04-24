@@ -6,8 +6,16 @@ from pathlib import Path
 
 print("BOOT 1: patched + stdlib imports ok", flush=True)
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
+    print("BOOT 1b: dotenv loaded", flush=True)
+except Exception as e:
+    print(f"BOOT 1b: dotenv not loaded ({e})", flush=True)
+
 from flask import Flask
 from flask_cors import CORS
+from i18n import get_locale, set_request_locale
 
 print("BOOT 2: flask imported", flush=True)
 
@@ -37,13 +45,6 @@ except Exception as e:
 import realtime
 print("BOOT 3: realtime imported", flush=True)
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
-    print("BOOT 3b: dotenv loaded", flush=True)
-except Exception as e:
-    print(f"BOOT 3b: dotenv not loaded ({e})", flush=True)
-
 def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "lifeline-dev-secret")
@@ -57,9 +58,13 @@ def create_app():
     app.register_blueprint(volunteers_bp, url_prefix="/api/volunteers")
     app.register_blueprint(locations_bp, url_prefix="/api/locations")
 
+    @app.before_request
+    def _apply_request_locale():
+        set_request_locale()
+
     @app.get("/api/health")
     def health():
-        return {"ok": True}
+        return {"ok": True, "locale": get_locale()}
 
     @app.get("/api/debug/groq")
     def debug_groq():

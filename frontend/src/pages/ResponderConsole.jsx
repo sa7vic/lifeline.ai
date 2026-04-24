@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { useTranslation } from "react-i18next";
+import { api, toUserMessage } from "../lib/api";
 import { getSession } from "../lib/session";
 import { initRealtime } from "../lib/realtime";
+import { useLocaleFormat } from "../i18n/format";
 
 const hazardOptions = ["traffic", "fire", "none", "other"];
 
@@ -10,8 +12,23 @@ function normalizeLocation(value) {
   return (value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function normalizeGender(raw) {
+  const value = (raw || "other").toLowerCase();
+  return value === "male" || value === "female" ? value : "other";
+}
+
+function toSeverityKey(level) {
+  if (!level) return "unknown";
+  const normalized = String(level).toLowerCase();
+  if (["critical", "high", "moderate", "low"].includes(normalized)) return normalized;
+  return "unknown";
+}
+
 export default function ResponderConsole() {
   const nav = useNavigate();
+  const { t } = useTranslation();
+  const { formatDateTime, formatNumber } = useLocaleFormat();
+
   const [session, setSession] = useState(() => getSession());
   const [active, setActive] = useState(true);
   const [locationText, setLocationText] = useState("");
@@ -24,9 +41,9 @@ export default function ResponderConsole() {
   const socket = useMemo(() => initRealtime(), []);
   const [alerts, setAlerts] = useState({});
 
-  const role = session?.role || session?.user?.role || "patient";
+  const role = session?.role || session?.user?.profile?.role || session?.user?.role || "patient";
   const isResponder = role === "official" || role === "volunteer";
-  const title = role === "official" ? "Health Official Console" : "Volunteer Console";
+  const title = role === "official" ? t("responder.titleOfficial") : t("responder.titleVolunteer");
   const accentStyles = role === "official"
     ? {
         chipActive: "border bg-amber-500 text-black border-amber-300",
@@ -40,6 +57,12 @@ export default function ResponderConsole() {
         badge: "border-emerald-300/40 text-emerald-200",
         cta: "bg-emerald-400 text-black",
       };
+
+  const profileName = session?.user?.profile?.name || t("responder.defaultName");
+  const greeting = t("responder.profileGreeting", {
+    context: normalizeGender(session?.user?.profile?.gender),
+    name: profileName,
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -151,16 +174,16 @@ export default function ResponderConsole() {
   async function saveLocation() {
     setSaveState({ busy: true, ok: "", err: "" });
     try {
-      if (!session?.token) throw new Error("Login to save a responder location.");
-      if (role !== "volunteer") throw new Error("Only volunteers need a text location.");
+      if (!session?.token) throw new Error(t("responder.loginToSaveLocation"));
+      if (role !== "volunteer") throw new Error(t("responder.volunteerOnlyError"));
 
       const loc = (locationText || "").trim();
-      if (!loc) throw new Error("Enter a location text first.");
+      if (!loc) throw new Error(t("responder.locationTextRequiredError"));
 
       await api.volunteerOptIn(session.token, { active, location_text: loc });
-      setSaveState({ busy: false, ok: "Saved. You will receive matching alerts.", err: "" });
+      setSaveState({ busy: false, ok: t("responder.saveLocationSuccess"), err: "" });
     } catch (e) {
-      setSaveState({ busy: false, ok: "", err: e.message || String(e) });
+      setSaveState({ busy: false, ok: "", err: toUserMessage(e, t) });
     }
   }
 
@@ -168,15 +191,10 @@ export default function ResponderConsole() {
     return (
       <div className="min-h-screen bg-black text-white p-6">
         <div className="max-w-xl mx-auto rounded-2xl border border-white/10 bg-white/5 p-6">
-          <div className="text-lg font-semibold">Responder access only</div>
-          <div className="text-sm text-white/70 mt-2">
-            Health Officials and Volunteers can access this console after signing in.
-          </div>
-          <button
-            className="mt-4 px-4 py-2 rounded-lg bg-white text-black"
-            onClick={() => nav("/")}
-          >
-            Return to access
+          <div className="text-lg font-semibold">{t("responder.restrictedTitle")}</div>
+          <div className="text-sm text-white/70 mt-2">{t("responder.restrictedBody")}</div>
+          <button className="mt-4 px-4 py-2 rounded-lg bg-white text-black" onClick={() => nav("/")}>
+            {t("responder.returnToAccess")}
           </button>
         </div>
       </div>
@@ -194,15 +212,12 @@ export default function ResponderConsole() {
       <div className="max-w-6xl mx-auto grid gap-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.35em] text-white/50">Responder</div>
+            <div className="text-xs uppercase tracking-[0.35em] text-white/50">{t("responder.sectionLabel")}</div>
             <h2 className="text-3xl md:text-4xl">{title}</h2>
-            <p className="text-sm text-white/70 mt-1">
-              Priority alerts for officials. Volunteers support nearby incidents in real time.
-            </p>
+            <p className="text-sm text-white/70 mt-1">{t("responder.subtitle")}</p>
+            <p className="text-xs text-white/50 mt-2">{greeting}</p>
           </div>
-          <div className="text-xs text-white/50">
-            Status updates refresh every few seconds.
-          </div>
+          <div className="text-xs text-white/50">{t("responder.refreshHint")}</div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
@@ -210,11 +225,9 @@ export default function ResponderConsole() {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-lg font-semibold">Responder Status</div>
+                  <div className="text-lg font-semibold">{t("responder.statusTitle")}</div>
                   <div className="text-xs text-white/60">
-                    {role === "official"
-                      ? "Primary responder visibility and command access."
-                      : "Opt in to receive exact location matches."}
+                    {role === "official" ? t("responder.statusHintOfficial") : t("responder.statusHintVolunteer")}
                   </div>
                 </div>
                 <button
@@ -223,21 +236,19 @@ export default function ResponderConsole() {
                   }`}
                   onClick={() => setActive((prev) => !prev)}
                 >
-                  {active ? "ON" : "OFF"}
+                  {active ? t("common.on") : t("common.off")}
                 </button>
               </div>
 
               <div className="mt-4 text-xs text-white/50">
-                {role === "official"
-                  ? "GPS location is used for priority routing. Keep it enabled for faster dispatch."
-                  : "Set your location text to filter volunteer alerts. Exact match only."}
+                {role === "official" ? t("responder.gpsHintOfficial") : t("responder.gpsHintVolunteer")}
               </div>
 
               <div className="mt-4">
-                <div className="text-xs text-white/60 mb-2">My location text</div>
+                <div className="text-xs text-white/60 mb-2">{t("responder.myLocation")}</div>
                 <input
                   className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10"
-                  placeholder="e.g., Andheri West, Mumbai"
+                  placeholder={t("responder.locationPlaceholder")}
                   value={locationText}
                   onChange={(e) => setLocationText(e.target.value)}
                   disabled={role === "official"}
@@ -249,33 +260,28 @@ export default function ResponderConsole() {
                 onClick={saveLocation}
                 disabled={saveState.busy || role !== "volunteer"}
               >
-                {saveState.busy ? "Saving..." : "Save Location"}
+                {saveState.busy ? t("responder.saveLocationBusy") : t("responder.saveLocation")}
               </button>
               {saveState.ok && <div className="text-xs text-emerald-200 mt-2">{saveState.ok}</div>}
               {saveState.err && <div className="text-xs text-red-300 mt-2">{saveState.err}</div>}
-              <div className="text-xs text-white/50 mt-3">
-                {session?.token ? "" : "Login to save a responder location."}
-              </div>
+              <div className="text-xs text-white/50 mt-3">{session?.token ? "" : t("responder.loginToSaveLocation")}</div>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-sm font-semibold">Safety guidance</div>
-              <div className="text-xs text-white/70 mt-2">
-                Do not approach if unsafe. Call 112 for life-threatening emergencies. Provide clear status updates.
-              </div>
+              <div className="text-sm font-semibold">{t("responder.safetyTitle")}</div>
+              <div className="text-xs text-white/70 mt-2">{t("responder.safetyText")}</div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-lg font-semibold">Realtime Alerts</div>
-                <div className="text-xs text-white/60">
-                  Alerts refresh automatically. Official priority is always preserved.
-                </div>
+                <div className="text-lg font-semibold">{t("responder.realtimeTitle")}</div>
+                <div className="text-xs text-white/60">{t("responder.realtimeHint")}</div>
+                <div className="text-xs text-white/50 mt-1">{t("responder.alertCount", { count: filteredAlerts.length })}</div>
               </div>
               <span className={`text-xs px-3 py-1 rounded-full border ${accentStyles.badge}`}>
-                {role === "official" ? "Priority" : "Support"}
+                {role === "official" ? t("responder.badgePriority") : t("responder.badgeSupport")}
               </span>
             </div>
 
@@ -285,13 +291,13 @@ export default function ResponderConsole() {
                   className={`px-3 py-2 rounded-lg text-xs ${chipClass(scopeFilter === "my", "white")}`}
                   onClick={() => setScopeFilter("my")}
                 >
-                  My location
+                  {t("responder.scopeMy")}
                 </button>
                 <button
                   className={`px-3 py-2 rounded-lg text-xs ${chipClass(scopeFilter === "all", "white")}`}
                   onClick={() => setScopeFilter("all")}
                 >
-                  All
+                  {t("responder.scopeAll")}
                 </button>
               </div>
 
@@ -300,25 +306,25 @@ export default function ResponderConsole() {
                   className={`px-3 py-2 rounded-lg text-xs ${chipClass(severityFilter === "high_critical", "accent")}`}
                   onClick={() => setSeverityFilter("high_critical")}
                 >
-                  High+Critical
+                  {t("responder.severityHighCritical")}
                 </button>
                 <button
                   className={`px-3 py-2 rounded-lg text-xs ${chipClass(severityFilter === "critical", "accent")}`}
                   onClick={() => setSeverityFilter("critical")}
                 >
-                  Critical only
+                  {t("responder.severityCriticalOnly")}
                 </button>
                 <button
                   className={`px-3 py-2 rounded-lg text-xs ${chipClass(severityFilter === "high", "accent")}`}
                   onClick={() => setSeverityFilter("high")}
                 >
-                  High only
+                  {t("responder.severityHighOnly")}
                 </button>
                 <button
                   className={`px-3 py-2 rounded-lg text-xs ${chipClass(severityFilter === "all", "accent")}`}
                   onClick={() => setSeverityFilter("all")}
                 >
-                  All severities
+                  {t("responder.severityAll")}
                 </button>
               </div>
 
@@ -329,7 +335,7 @@ export default function ResponderConsole() {
                     className={`px-3 py-2 rounded-lg text-xs ${chipClass(hazardFilter === h, "white")}`}
                     onClick={() => setHazardFilter((prev) => (prev === h ? "" : h))}
                   >
-                    {h}
+                    {t(`hazards.${h}`)}
                   </button>
                 ))}
               </div>
@@ -338,49 +344,51 @@ export default function ResponderConsole() {
             <div className="mt-4 grid gap-3">
               {filteredAlerts.length === 0 && (
                 <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-xs text-white/60">
-                  No matching alerts yet. Keep location active for faster routing.
+                  {t("responder.noAlerts")}
                 </div>
               )}
 
               {filteredAlerts.map((alert) => (
-                <div
-                  key={alert.alert_id}
-                  className="rounded-xl border border-white/10 bg-black/40 p-4"
-                >
+                <div key={alert.alert_id} className="rounded-xl border border-white/10 bg-black/40 p-4">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold">
-                      {alert.severity || "Serious"} incident
+                      {t("responder.severityIncident", {
+                        severity: t(`severity.${toSeverityKey(alert.severity || "unknown")}`),
+                      })}
                     </div>
                     <span className="text-[10px] uppercase text-white/50">
-                      {alert.source === "volunteer" ? "text match" : "priority"}
+                      {alert.source === "volunteer" ? t("responder.sourceTextMatch") : t("responder.sourcePriority")}
                     </span>
                   </div>
                   <div className="text-xs text-white/70 mt-1">
-                    Incident: {alert.incident_id || "pending"}
+                    {t("common.incidentLabel", { incidentId: alert.incident_id || t("responder.incidentPending") })}
                   </div>
                   {Number.isFinite(alert.distance_m) && (
                     <div className="text-xs text-white/60 mt-1">
-                      Distance: {Math.round(alert.distance_m)} m
+                      {t("common.distanceMeters", { distance: formatNumber(Math.round(alert.distance_m)) })}
                     </div>
                   )}
                   {Array.isArray(alert.hazards) && alert.hazards.length > 0 && (
                     <div className="text-xs text-white/60 mt-1">
-                      Hazards: {alert.hazards.join(", ")}
+                      {t("questionnaire.hazards")}: {alert.hazards.map((h) => t(`hazards.${h}`)).join(", ")}
+                    </div>
+                  )}
+                  {alert.received_at && (
+                    <div className="text-xs text-white/50 mt-1">
+                      {t("common.updatedAt", { time: formatDateTime(alert.received_at) })}
                     </div>
                   )}
                   {alert.safe_instructions && (
                     <div className="text-xs text-white/60 mt-2">{alert.safe_instructions}</div>
                   )}
                   <button className={`mt-3 w-full px-3 py-2 rounded-lg ${accentStyles.cta} font-semibold`}>
-                    {role === "official" ? "Take Command" : "Respond"}
+                    {role === "official" ? t("responder.takeCommand") : t("responder.respond")}
                   </button>
                 </div>
               ))}
             </div>
 
-            <div className="text-xs text-white/50 mt-3">
-              Save your location above to see matching volunteer alerts.
-            </div>
+            <div className="text-xs text-white/50 mt-3">{t("responder.saveHint")}</div>
           </div>
         </div>
       </div>

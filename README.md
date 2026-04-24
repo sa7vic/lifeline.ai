@@ -143,6 +143,76 @@ Frontend runs on: `http://localhost:5173`
 
 ---
 
+## Internationalization (i18n) and Localization (l10n)
+
+LifeLineAI now includes a centralized, scalable localization system across frontend UI and backend API error messages.
+
+### Frontend architecture
+
+- Core i18n bootstrap: `frontend/src/i18n/index.js`
+- Locale config and RTL support: `frontend/src/i18n/config.js`
+- Locale-aware formatters (date/time/number/currency): `frontend/src/i18n/format.js`
+- Language resources:
+  - `frontend/src/i18n/locales/en/translation.json`
+  - `frontend/src/i18n/locales/hi/translation.json`
+  - `frontend/src/i18n/locales/ar/translation.json`
+
+Key capabilities:
+- Browser auto-detection + persistent manual selection via localStorage (`lifeline_locale`)
+- Lazy-loaded translation bundles (`import.meta.glob` + dynamic resource backend)
+- Fallback to English for unsupported/missing locales
+- Interpolation, pluralization, and gender-context keys via i18next
+- RTL direction switching (`dir=rtl` for Arabic)
+
+### Backend architecture
+
+- Core locale utility: `backend/i18n.py`
+- Backend message resources:
+  - `backend/locales/en.json`
+  - `backend/locales/hi.json`
+  - `backend/locales/ar.json`
+
+Key capabilities:
+- `Accept-Language` and optional `X-Locale`/`lang` locale detection
+- Fallback to English when locale is missing/unsupported
+- Localized API errors via `error_response(code, status)`
+- Stable machine-readable `error_code` in API responses
+
+### Validation and tests
+
+Frontend:
+
+```bash
+cd frontend
+npm run i18n:validate
+npm test
+```
+
+Backend:
+
+```bash
+cd backend
+python -m unittest discover -s tests
+```
+
+### Adding a new language
+
+1. Add frontend bundle: `frontend/src/i18n/locales/<locale>/translation.json`
+2. Register locale in `frontend/src/i18n/config.js` (`SUPPORTED_LOCALES`, optional `RTL_LOCALES`)
+3. Add backend locale file: `backend/locales/<locale>.json`
+4. Run validation/tests:
+   - `npm run i18n:validate`
+   - `npm test`
+   - `python -m unittest discover -s tests`
+
+### Translation conventions
+
+- Use namespaced dot keys, e.g. `responder.saveLocation`
+- Use interpolation placeholders, e.g. `{{incidentId}}`
+- Use plural keys (`key_one`, `key_other`) and gender context keys (`key_male`, `key_female`, `key_other`)
+
+---
+
 ## Run both (Windows PowerShell)
 
 The repo includes a helper script:
