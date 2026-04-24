@@ -5,6 +5,7 @@ import { getSession } from "../../lib/session";
 
 export default function NotificationCenter() {
   const [alerts, setAlerts] = useState({});
+  const [dismissed, setDismissed] = useState({});
   const [session, setSession] = useState(() => getSession());
   const socket = useMemo(() => initRealtime(), []);
 
@@ -21,15 +22,23 @@ export default function NotificationCenter() {
     if (!socket) return undefined;
 
     function onEnter(payload) {
+      if (dismissed[payload.alert_id]) return;
       setAlerts((prev) => ({ ...prev, [payload.alert_id]: payload }));
     }
 
     function onUpdate(payload) {
+      if (dismissed[payload.alert_id]) return;
       setAlerts((prev) => ({ ...prev, [payload.alert_id]: { ...prev[payload.alert_id], ...payload } }));
     }
 
     function onExit(payload) {
       setAlerts((prev) => {
+        const next = { ...prev };
+        delete next[payload.alert_id];
+        return next;
+      });
+      setDismissed((prev) => {
+        if (!prev[payload.alert_id]) return prev;
         const next = { ...prev };
         delete next[payload.alert_id];
         return next;
@@ -112,17 +121,37 @@ export default function NotificationCenter() {
     resolveOrigin();
   }
 
+  function dismissAlert(alertId) {
+    setAlerts((prev) => {
+      const next = { ...prev };
+      delete next[alertId];
+      return next;
+    });
+    setDismissed((prev) => ({ ...prev, [alertId]: true }));
+  }
+
   return (
     <div className="fixed top-4 right-4 z-50 w-full max-w-xs space-y-2">
       {list.map((a) => (
         <div key={a.alert_id} className="rounded-xl border border-red-500/40 bg-red-600/15 text-white p-3 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="text-xs uppercase tracking-wide text-red-200">Nearby Emergency</div>
-            <span className={`text-[10px] px-2 py-1 rounded-full border ${
-              role === "official" ? "border-amber-300/40 text-amber-200" : "border-emerald-300/40 text-emerald-200"
-            }`}>
-              {responderLabel}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] px-2 py-1 rounded-full border ${
+                role === "official" ? "border-amber-300/40 text-amber-200" : "border-emerald-300/40 text-emerald-200"
+              }`}>
+                {responderLabel}
+              </span>
+              <button
+                type="button"
+                className="w-6 h-6 rounded-full border border-white/20 text-white/70 hover:text-white hover:border-white/40"
+                onClick={() => dismissAlert(a.alert_id)}
+                aria-label="Dismiss notification"
+                title="Dismiss"
+              >
+                x
+              </button>
+            </div>
           </div>
           <div className="font-semibold">{a.severity || "Serious"} incident</div>
           <div className="text-sm text-white/80 mt-1">

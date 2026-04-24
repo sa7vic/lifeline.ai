@@ -17,7 +17,8 @@ function Questionnaire() {
     conscious: "unsure",
     breathing: "unsure",
     visible_injuries: "unsure",
-    environment_hazards: []
+    environment_hazards: [],
+    description: ""
   });
 
   function setField(k, v) {
@@ -115,6 +116,15 @@ function Questionnaire() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <div className="text-sm text-white/80 mb-2">Description (optional)</div>
+            <textarea className="px-3 py-2 rounded bg-black/30 border border-white/10 w-full min-h-[90px]"
+              placeholder="Anything else that might help responders..."
+              value={q.description}
+              onChange={(e) => setField("description", e.target.value)}
+            />
           </div>
 
           {err && <div className="text-sm text-red-300">{err}</div>}

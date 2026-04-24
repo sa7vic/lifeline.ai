@@ -6,6 +6,13 @@ from pathlib import Path
 
 print("BOOT 1: patched + stdlib imports ok", flush=True)
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
+    print("BOOT 1b: dotenv loaded", flush=True)
+except Exception as e:
+    print(f"BOOT 1b: dotenv not loaded ({e})", flush=True)
+
 from flask import Flask
 from flask_cors import CORS
 
@@ -36,13 +43,6 @@ except Exception as e:
 
 import realtime
 print("BOOT 3: realtime imported", flush=True)
-
-try:
-    from dotenv import load_dotenv
-    load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
-    print("BOOT 3b: dotenv loaded", flush=True)
-except Exception as e:
-    print(f"BOOT 3b: dotenv not loaded ({e})", flush=True)
 
 def create_app():
     app = Flask(__name__)
