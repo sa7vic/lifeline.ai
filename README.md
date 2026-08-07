@@ -1,266 +1,223 @@
 # LifeLineAI – AI-Powered Health & Emergency Decision Assistant
 
-LifeLineAI is a **multimodal, AI-assisted emergency decision-support system** built to help health workers and everyday bystanders make **faster, more informed choices** during routine medical situations and emergencies.
+LifeLineAI is a **multimodal, AI-powered health and emergency decision-support platform** designed to help bystanders, volunteers, healthcare workers, and emergency officials make faster, more informed decisions during routine medical situations and emergencies.
 
-Users can submit incident details using **short video clips + a quick questionnaire**. The backend performs **computer-vision triage** (pose + motion + collapse likelihood + blood detection), then optionally enriches results using an **LLM (Groq)** to generate a structured emergency summary and step-by-step guidance.
+Users can submit an incident using a **short video clip** along with a **quick triage questionnaire**. The backend analyzes the footage using computer vision techniques such as **pose estimation, motion analysis, collapse likelihood estimation, and blood detection** to assess the situation. Based on the analysis, the system can optionally use a **Groq-powered Large Language Model (LLM)** to generate a structured emergency summary, severity assessment, and step-by-step guidance.
 
-In high-risk cases, the system supports **real-time alerting** to nearby responders via **Socket.IO**, with separate experiences for:
-- **Patients / bystanders** (send SOS + get guidance)
-- **Health officials** (priority visibility)
-- **Volunteers** (opt-in and get matched by location)
+For high-risk situations, LifeLineAI supports **real-time emergency alerting** and responder workflows using **Socket.IO**, enabling rapid communication between patients, volunteers, and health officials.
 
-> **Important:** LifeLineAI is a **decision-support tool**, not a replacement for professional medical judgment. If a situation is life-threatening or you’re unsure, contact your local emergency number immediately.
+LifeLineAI provides dedicated experiences for:
+
+* **Patients / Bystanders** – Submit SOS requests and receive AI-assisted emergency guidance.
+* **Health Officials** – Monitor and prioritize emergency incidents.
+* **Volunteers** – Opt in to receive and respond to nearby emergency alerts based on location.
+
+> **Important:** LifeLineAI is a decision-support tool and is **not a replacement for professional medical judgment**. If a situation is life-threatening or you are unsure, contact your local emergency services immediately.
 
 ---
 
-## What’s in this repository?
+## Live Demo
 
-### Frontend (React + Vite + Tailwind)
+**Frontend:** https://lifeline-ai-blush.vercel.app
+
+---
+
+## Features
+
+* Video-based emergency incident reporting
+* Short AI-assisted triage questionnaire
+* Computer vision analysis using pose estimation, motion analysis, collapse likelihood detection, and blood detection
+* Hybrid emergency severity assessment (Low, Moderate, High, Critical)
+* Structured emergency summaries and guidance powered by Groq LLM
+* Incident-aware chatbot for follow-up questions
+* Incident report generation
+* Real-time emergency alerts using Socket.IO
+* Volunteer opt-in and nearby responder matching
+* Role-based experiences for patients, volunteers, and health officials
+* Multilingual frontend and backend localization
+* Support for English, Hindi, and Arabic
+* Right-to-left (RTL) support for Arabic
+
+---
+
+## What's in this Repository?
+
+### Frontend (React + Vite + Tailwind CSS)
+
 Located in `frontend/`.
 
-Key flows (routes in `frontend/src/router.jsx`):
-- `/` → Auth gate (login/signup or continue as guest)
-- `/emergency` → Record/upload a short SOS video clip
-- `/questionnaire/:incidentId` → Quick triage questionnaire (conscious/breathing/hazards/location)
-- `/guidance/:incidentId` → Displays AI-generated severity + steps + voice/TTS + chatbot overlay
-- `/responder` → Responder console (official/volunteer) with real-time alerts
+The frontend provides dedicated interfaces for patients, volunteers, and responders.
 
-Frontend talks to the backend using:
-- `VITE_API_BASE` from `frontend/.env` (default fallback: `http://localhost:5000`)
+#### Main Routes
 
-### Backend (Flask + Socket.IO + CV + Groq)
+| Route                        | Description                                                                |
+| ---------------------------- | -------------------------------------------------------------------------- |
+| `/`                          | Authentication (login, signup, or continue as guest)                       |
+| `/emergency`                 | Record or upload an emergency video                                        |
+| `/questionnaire/:incidentId` | Complete the triage questionnaire                                          |
+| `/guidance/:incidentId`      | View AI-generated severity, emergency guidance, voice support, and chatbot |
+| `/responder`                 | Real-time responder dashboard                                              |
+
+The frontend communicates with the backend using the `VITE_API_BASE` environment variable (default: `http://localhost:5000`).
+
+---
+
+### Backend (Flask + Socket.IO + Computer Vision + Groq)
+
 Located in `backend/`.
 
-Main server: `backend/app.py`  
-API health check: `GET /api/health`
+Main server:
 
-Blueprints:
-- `POST /api/auth/signup`, `POST /api/auth/login`, `GET /api/auth/me`
-- `POST /api/incidents` → upload incident video
-- `POST /api/incidents/<id>/questionnaire`
-- `POST /api/incidents/<id>/analyze` → CV + severity gate + optional LLM structured output
-- `POST /api/incidents/<id>/chat` → LLM chatbot Q&A about the incident context
-- `GET /api/incidents/<id>/report` → downloads a text incident report
-- `POST /api/volunteers/opt-in` → volunteer availability + location text
-- `POST /api/locations/update`, `GET /api/locations/me`, `GET /api/locations/nearby`
+`backend/app.py`
 
-Real-time:
-- Socket.IO server is initialized in `backend/socketio_server.py`
-- Client registration is handled in `backend/realtime.py` (`register` event)
-- Serious alerts are emitted from `backend/alerts.py`
+Health endpoint:
 
-AI modules (in `backend/ai/`):
-- `pose_analysis.py` → MediaPipe pose landmarks → movement + torso angle + collapse likelihood summary
-- `blood_detection.py` → estimates blood area ratio from frames (BGR heuristic)
-- `severity_engine.py` → **hybrid severity gate** (rule-based severity: Low/Moderate/High/Critical)
-- `serious_detection.py` → quick serious/not-serious classifier based on video-derived metrics
-- `groq_service.py` → optional Groq LLM JSON-mode responses with robust JSON extraction
-- `llm_prompts.py` / `json_extract.py` → structured prompting + parsing helpers
+`GET /api/health`
 
----
+#### Authentication
 
-## Severity logic (high level)
+* `POST /api/auth/signup`
+* `POST /api/auth/login`
+* `GET /api/auth/me`
 
-The backend produces a severity level:
-- **Low**
-- **Moderate**
-- **High**
-- **Critical**
+#### Incident APIs
 
-It uses:
-1. **Video-derived metrics** (pose/motion/collapse + blood estimation)
-2. **Questionnaire answers** (conscious/breathing/location/hazards)
-3. A **hybrid severity gate** (rules + overrides)
-4. Optional **LLM enrichment** (Groq), returning strict JSON with summary + reasoning + step list
+* `POST /api/incidents`
+* `POST /api/incidents/<id>/questionnaire`
+* `POST /api/incidents/<id>/analyze`
+* `POST /api/incidents/<id>/chat`
+* `GET /api/incidents/<id>/report`
 
-If Groq is not configured, the system **falls back gracefully** with a minimal structured response.
+#### Volunteer APIs
+
+* `POST /api/volunteers/opt-in`
+
+#### Location APIs
+
+* `POST /api/locations/update`
+* `GET /api/locations/me`
+* `GET /api/locations/nearby`
 
 ---
 
-## Prerequisites
+## AI Pipeline
 
-- **Python 3.x** (recommended: 3.10+)
-- **Node.js 18+** (recommended)
-- **Groq API key** for LLM features
+LifeLineAI combines computer vision, rule-based reasoning, and an optional Large Language Model to analyze emergency incidents.
 
----
+### Computer Vision Modules (`backend/ai/`)
 
-## Setup (Backend)
-
-```bash
-cd backend
-
-python -m venv venv
-# Windows (PowerShell)
-.\venv\Scripts\Activate.ps1
-# macOS/Linux
-# source venv/bin/activate
-
-pip install -r requirements.txt
-```
-
-Create `.env` (copy from example):
-
-```bash
-# in backend/
-cp .env.example .env
-```
-
-Example `.env` fields:
-- `SECRET_KEY`
-- `PORT` (default 5000)
-- `FRONTEND_URL` (default `http://localhost:5173`, used for CORS + Socket.IO origin checks)
-- `GROQ_API_KEY` (optional but enables LLM)
-- `GROQ_MODEL` (default in repo: `llama-3.3-70b-versatile`)
-- `UPLOAD_DIR` (default: `uploads`)
-
-Run backend:
-
-```bash
-python app.py
-```
-
-Production (Gunicorn + threaded worker):
-
-```bash
-gunicorn -w 1 --threads 8 -b 0.0.0.0:${PORT:-5000} app:app
-```
-
-Backend should be on: `http://localhost:5000`
+* **pose_analysis.py** – Uses MediaPipe Pose to estimate body landmarks, movement, torso angle, and collapse likelihood.
+* **blood_detection.py** – Estimates blood area ratio from video frames using color heuristics.
+* **serious_detection.py** – Performs a quick serious/not-serious classification from video-derived metrics.
+* **severity_engine.py** – Implements the hybrid severity engine to classify incidents as Low, Moderate, High, or Critical.
+* **groq_service.py** – Generates structured emergency summaries and guidance using the Groq API.
+* **llm_prompts.py** and **json_extract.py** – Handle prompt generation and structured JSON extraction.
 
 ---
 
-## Setup (Frontend)
+## Severity Logic
 
-```bash
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
-```
+The backend produces one of four severity levels:
 
-Frontend runs on: `http://localhost:5173`
+* Low
+* Moderate
+* High
+* Critical
 
----
+Severity is determined using:
 
-## Internationalization (i18n) and Localization (l10n)
+1. Video-derived metrics (pose, motion, collapse likelihood, blood estimation)
+2. Questionnaire responses (consciousness, breathing, hazards, and location)
+3. Hybrid rule-based severity logic with overrides
+4. Optional Groq LLM enrichment that returns structured JSON containing a summary, reasoning, and recommended actions
 
-LifeLineAI now includes a centralized, scalable localization system across frontend UI and backend API error messages.
-
-### Frontend architecture
-
-- Core i18n bootstrap: `frontend/src/i18n/index.js`
-- Locale config and RTL support: `frontend/src/i18n/config.js`
-- Locale-aware formatters (date/time/number/currency): `frontend/src/i18n/format.js`
-- Language resources:
-  - `frontend/src/i18n/locales/en/translation.json`
-  - `frontend/src/i18n/locales/hi/translation.json`
-  - `frontend/src/i18n/locales/ar/translation.json`
-
-Key capabilities:
-- Browser auto-detection + persistent manual selection via localStorage (`lifeline_locale`)
-- Lazy-loaded translation bundles (`import.meta.glob` + dynamic resource backend)
-- Fallback to English for unsupported/missing locales
-- Interpolation, pluralization, and gender-context keys via i18next
-- RTL direction switching (`dir=rtl` for Arabic)
-
-### Backend architecture
-
-- Core locale utility: `backend/i18n.py`
-- Backend message resources:
-  - `backend/locales/en.json`
-  - `backend/locales/hi.json`
-  - `backend/locales/ar.json`
-
-Key capabilities:
-- `Accept-Language` and optional `X-Locale`/`lang` locale detection
-- Fallback to English when locale is missing/unsupported
-- Localized API errors via `error_response(code, status)`
-- Stable machine-readable `error_code` in API responses
-
-### Validation and tests
-
-Frontend:
-
-```bash
-cd frontend
-npm run i18n:validate
-npm test
-```
-
-Backend:
-
-```bash
-cd backend
-python -m unittest discover -s tests
-```
-
-### Adding a new language
-
-1. Add frontend bundle: `frontend/src/i18n/locales/<locale>/translation.json`
-2. Register locale in `frontend/src/i18n/config.js` (`SUPPORTED_LOCALES`, optional `RTL_LOCALES`)
-3. Add backend locale file: `backend/locales/<locale>.json`
-4. Run validation/tests:
-   - `npm run i18n:validate`
-   - `npm test`
-   - `python -m unittest discover -s tests`
-
-### Translation conventions
-
-- Use namespaced dot keys, e.g. `responder.saveLocation`
-- Use interpolation placeholders, e.g. `{{incidentId}}`
-- Use plural keys (`key_one`, `key_other`) and gender context keys (`key_male`, `key_female`, `key_other`)
+If a Groq API key is not configured, the system automatically falls back to a minimal structured response.
 
 ---
 
-## Run both (Windows PowerShell)
+## Multilingual Support
 
-The repo includes a helper script:
+LifeLineAI includes a centralized internationalization and localization system across both the frontend and backend.
 
-```powershell
-.\start-dev.ps1
-```
+### Supported Languages
 
-This starts:
-- Backend (`python app.py`)
-- Frontend (`npm run dev`)
+* English (`en`)
+* Hindi (`hi`)
+* Arabic (`ar`)
+
+### Frontend
+
+Frontend localization files are located in:
+
+* `frontend/src/i18n/index.js`
+* `frontend/src/i18n/config.js`
+* `frontend/src/i18n/locales/en/translation.json`
+* `frontend/src/i18n/locales/hi/translation.json`
+* `frontend/src/i18n/locales/ar/translation.json`
+
+Features include:
+
+* Automatic browser language detection
+* Manual language switching
+* Persistent language selection using localStorage
+* RTL layout support for Arabic
+* Localized UI text, labels, and helper messages
+
+### Backend
+
+Backend localization is implemented using:
+
+* `backend/i18n.py`
+* `backend/locales/en.json`
+* `backend/locales/hi.json`
+* `backend/locales/ar.json`
+
+Features include:
+
+* Locale detection using `Accept-Language`, `X-Locale`, or `lang`
+* English fallback for unsupported locales
+* Localized API error messages
+* Stable machine-readable error codes
+
+---
+
+## Real-Time Alerts
+
+LifeLineAI uses Socket.IO for live communication between clients and responders.
+
+* Clients register using either a user token or guest ID.
+* The backend maps each client to a dedicated subject room.
+* Critical incidents trigger real-time notifications.
+* Volunteers can receive alerts based on location matching.
 
 ---
 
-## Real-time alerts (how it works)
+## API Reference
 
-LifeLineAI uses Socket.IO for live updates:
-- Frontend connects to the backend Socket.IO server (`frontend/src/lib/realtime.js`)
-- Client emits `register` with either:
-  - `token` (logged-in user)
-  - `guest_id` (guest mode)
-- Backend maps the socket to a **subject room** (`subject:<id>`)
-- When a serious incident is detected, alerts can be emitted to:
-  - The subject room (priority serious alerts)
-  - Volunteers matched by location text in the demo logic
+### Health
 
----
+* `GET /api/health`
 
-## API quick reference
+### Authentication
 
-Backend base: `http://localhost:5000`
+* `POST /api/auth/signup`
+* `POST /api/auth/login`
+* `GET /api/auth/me`
 
-- `GET /api/health`
-- Auth:
-  - `POST /api/auth/signup`
-  - `POST /api/auth/login`
-  - `GET /api/auth/me`
-- Incidents:
-  - `POST /api/incidents` (multipart form-data: `video`, plus optional `guest_id`)
-  - `POST /api/incidents/<incidentId>/questionnaire`
-  - `POST /api/incidents/<incidentId>/analyze`
-  - `POST /api/incidents/<incidentId>/chat`
-  - `GET /api/incidents/<incidentId>/report`
-- Volunteers:
-  - `POST /api/volunteers/opt-in`
-- Locations:
-  - `POST /api/locations/update`
-  - `GET /api/locations/me`
-  - `GET /api/locations/nearby`
+### Incidents
 
----
+* `POST /api/incidents`
+* `POST /api/incidents/<incidentId>/questionnaire`
+* `POST /api/incidents/<incidentId>/analyze`
+* `POST /api/incidents/<incidentId>/chat`
+* `GET /api/incidents/<incidentId>/report`
+
+### Volunteers
+
+* `POST /api/volunteers/opt-in`
+
+### Locations
+
+* `POST /api/locations/update`
+* `GET /api/locations/me`
+* `GET /api/locations/nearby`
